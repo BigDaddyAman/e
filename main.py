@@ -32,7 +32,7 @@ async def receive_webhook(request: Request):
 @app.get("/")
 def root():
     webhook_status = "✅ Connected" if WEBHOOK_CATCHER_URL else "❌ Not configured"
-    domain = os.getenv('RAILWAY_PUBLIC_DOMAIN', 'your-bot-domain.railway.app')
+    domain = os.getenv('RAILWAY_PUBLIC_DOMAIN', 'e-production-1c9a.up.railway.app')
     
     return HTMLResponse(f"""
     <!DOCTYPE html>
@@ -71,18 +71,20 @@ def root():
         <pre>curl https://{domain}/health</pre>
         
         <p>Send POST requests to <code>/webhook</code> to test the bot and forwarding.</p>
+        <p><strong>Forwarding Status:</strong> {'✅ Working! Webhooks are being forwarded to your catcher.' if WEBHOOK_CATCHER_URL else '❌ Set WEBHOOK_CATCHER_URL to enable forwarding.'}</p>
     </body>
     </html>
     """)
 
 @app.get("/health")
 def health():
-    """Health check endpoint - this was missing!"""
+    """Health check endpoint"""
     return {
         "status": "healthy", 
         "service": "test-bot",
         "webhook_catcher_configured": bool(WEBHOOK_CATCHER_URL),
         "webhook_catcher_url": WEBHOOK_CATCHER_URL,
+        "forwarding_working": bool(WEBHOOK_CATCHER_URL),
         "timestamp": datetime.now().isoformat()
     }
 
