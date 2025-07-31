@@ -1,12 +1,13 @@
 import os
 from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 import uvicorn
 import httpx
+from datetime import datetime
 
 WEBHOOK_CATCHER_URL = os.getenv("WEBHOOK_CATCHER_URL")
 
-app = FastAPI()
-
+app = FastAPI(title="Test Bot Service")
 
 @app.post("/webhook")
 async def receive_webhook(request: Request):
@@ -17,18 +18,90 @@ async def receive_webhook(request: Request):
     if WEBHOOK_CATCHER_URL:
         try:
             async with httpx.AsyncClient() as client:
-                await client.post(WEBHOOK_CATCHER_URL, json=payload)
-                print("📤 Forwarded to catcher")
+                response = await client.post(WEBHOOK_CATCHER_URL, json=payload)
+                print(f"📤 Forwarded to catcher (Status: {response.status_code})")
         except Exception as e:
             print("❌ Error forwarding to catcher:", e)
 
-    return {"status": "ok"}
-
+    return {
+        "status": "ok", 
+        "message": "Webhook received by bot service",
+        "timestamp": datetime.now().isoformat()
+    }
 
 @app.get("/")
 def root():
-    return {"message": "Bot is running. POST to /webhook"}
+    webhook_status = "✅ Connected" if WEBHOOK_CATCHER_URL else "❌ Not configured"
+    domain = os.getenv('RAILWAY_PUBLIC_DOMAIN', 'e-production-1c9a.up.railway.app')
+    
+    return HTMLResponse(f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Test Bot Service - Updated!</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; padding: 2rem; max-width: 600px; margin: 0 auto; }}
+            .status {{ padding: 1rem; margin: 1rem 0; border-radius: 8px; }}
+            .connected {{ background: #d4edda; color: #155724; }}
+            .disconnected {{ background: #f8d7da; color: #721c24; }}
+            pre {{ background: #f8f9fa; padding: 1rem; border-radius: 4px; overflow-x: auto; }}
+            .endpoint {{ background: #e9ecef; padding: 0.5rem; margin: 0.5rem 0; border-radius: 4px; }}
+            .success {{ background: #d4edda; color: #155724; padding: 1rem; border-radius: 8px; margin: 1rem 0; }}
+        </style>
+    </head>
+    <body>
+        <h1>🤖 Test Bot Service</h1>
+        <div class="success">✅ <strong>Updated Version!</strong> Health endpoint is now available.</div>
+        <p>Bot is running and ready to receive webhooks!</p>
+        
+        <div class="status {'connected' if WEBHOOK_CATCHER_URL else 'disconnected'}">
+            <strong>Webhook Catcher:</strong> {webhook_status}<br>
+            <strong>URL:</strong> {WEBHOOK_CATCHER_URL or 'Not set'}
+        </div>
+        
+        <h3>📡 Available Endpoints:</h3>
+        <div class="endpoint"><strong>GET</strong> <code>/</code> - This page</div>
+        <div class="endpoint"><strong>GET</strong> <code>/health</code> - ✅ Health check (NOW WORKING!)</div>
+        <div class="endpoint"><strong>POST</strong> <code>/webhook</code> - Receive webhooks</div>
+        
+        <h3>🧪 Test with cURL:</h3>
+        <pre>curl -X POST https://{domain}/webhook \\
+  -H "Content-Type: application/json" \\
+  -d '{{"event": "test", "message": "Hello Bot!"}}'</pre>
+        
+        <h3>🔍 Health Check (Try this now!):</h3>
+        <pre>curl https://{domain}/health</pre>
+        
+        <p>Send POST requests to <code>/webhook</code> to test the bot and forwarding.</p>
+        <p><strong>Forwarding Status:</strong> {'✅ Working! Webhooks are being forwarded to your catcher.' if WEBHOOK_CATCHER_URL else '❌ Set WEBHOOK_CATCHER_URL to enable forwarding.'}</p>
+    </body>
+    </html>
+    """)
 
+@app.get("/health")
+def health():
+    """Health check endpoint - NOW INCLUDED!"""
+    return {
+        "status": "healthy", 
+        "service": "test-bot",
+        "version": "2.0-with-health-endpoint",
+        "webhook_catcher_configured": bool(WEBHOOK_CATCHER_URL),
+        "webhook_catcher_url": WEBHOOK_CATCHER_URL,
+        "forwarding_working": bool(WEBHOOK_CATCHER_URL),
+        "timestamp": datetime.now().isoformat(),
+        "message": "Health endpoint is working! 🎉"
+    }
+
+# Add a debug endpoint to verify deployment
+@app.get("/debug")
+def debug():
+    """Debug endpoint to verify this is the updated code"""
+    return {
+        "message": "This is the UPDATED version with health endpoint!",
+        "version": "2.0",
+        "health_endpoint_available": True,
+        "timestamp": datetime.now().isoformat()
+    }
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
+    uvicorn.run("test:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
