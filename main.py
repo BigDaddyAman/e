@@ -31,8 +31,9 @@ async def receive_webhook(request: Request):
 
 @app.get("/")
 def root():
-    # Add a simple HTML interface
     webhook_status = "✅ Connected" if WEBHOOK_CATCHER_URL else "❌ Not configured"
+    domain = os.getenv('RAILWAY_PUBLIC_DOMAIN', 'your-bot-domain.railway.app')
+    
     return HTMLResponse(f"""
     <!DOCTYPE html>
     <html>
@@ -44,6 +45,7 @@ def root():
             .connected {{ background: #d4edda; color: #155724; }}
             .disconnected {{ background: #f8d7da; color: #721c24; }}
             pre {{ background: #f8f9fa; padding: 1rem; border-radius: 4px; overflow-x: auto; }}
+            .endpoint {{ background: #e9ecef; padding: 0.5rem; margin: 0.5rem 0; border-radius: 4px; }}
         </style>
     </head>
     <body>
@@ -55,10 +57,18 @@ def root():
             <strong>URL:</strong> {WEBHOOK_CATCHER_URL or 'Not set'}
         </div>
         
-        <h3>Test with cURL:</h3>
-        <pre>curl -X POST https://{os.getenv('RAILWAY_PUBLIC_DOMAIN', 'your-bot-domain.railway.app')}/webhook \\
+        <h3>📡 Available Endpoints:</h3>
+        <div class="endpoint"><strong>GET</strong> <code>/</code> - This page</div>
+        <div class="endpoint"><strong>GET</strong> <code>/health</code> - Health check</div>
+        <div class="endpoint"><strong>POST</strong> <code>/webhook</code> - Receive webhooks</div>
+        
+        <h3>🧪 Test with cURL:</h3>
+        <pre>curl -X POST https://{domain}/webhook \\
   -H "Content-Type: application/json" \\
   -d '{{"event": "test", "message": "Hello Bot!"}}'</pre>
+        
+        <h3>🔍 Health Check:</h3>
+        <pre>curl https://{domain}/health</pre>
         
         <p>Send POST requests to <code>/webhook</code> to test the bot and forwarding.</p>
     </body>
@@ -67,6 +77,7 @@ def root():
 
 @app.get("/health")
 def health():
+    """Health check endpoint - this was missing!"""
     return {
         "status": "healthy", 
         "service": "test-bot",
@@ -77,5 +88,3 @@ def health():
 
 if __name__ == "__main__":
     uvicorn.run("test:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
-
-web: uvicorn test:app --host=0.0.0.0 --port=${PORT:-8000}
